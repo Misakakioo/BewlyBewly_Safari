@@ -143,3 +143,82 @@ test('Safari tells tabs to re-check login after cookie changes, throttled', asyn
   scheduled()
   assert.equal(notified, 2)
 })
+
+test('Safari split rules use their own ID range, so removal never touches upstream rule IDs', async (t) => {
+  const { adaptSafariRuleUpdate, expandRegexAlternation } = await loadModule('src/safari/declarativeNetRequest.ts')
+  const rule = {
+    id: 1002,
+    priority: 1,
+    action: { type: 'modifyHeaders', requestHeaders: [{ header: 'user-agent', operation: 'set', value: 'x' }, { header: 'sec-ch-ua', operation: 'remove' }] },
+    condition: { regexFilter: '^https://a\\.com/(x|y)', resourceTypes: ['xmlhttprequest'] },
+  }
+  const { addRules, removeRuleIds } = adaptSafariRuleUpdate({ removeRuleIds: [1002], addRules: [rule] })
+  assert.deepEqual(addRules.map(r => r.id), [1002, 910021])
+  assert.deepEqual(addRules.map(r => r.condition.regexFilter), ['^https://a\\.com/x', '^https://a\\.com/y'])
+  assert.deepEqual(addRules[0].action.requestHeaders.map(h => h.header), ['user-agent'])
+  assert.equal(removeRuleIds[0], 1002)
+  assert.ok(removeRuleIds.slice(1).every(id => id > 900_000), 'never removes upstream-range ids such as 1102')
+  assert.deepEqual(expandRegexAlternation('^a(?:b|c)$'), ['^ab$', '^ac$'])
+
+  const errors = t.mock.method(console, 'error', () => {})
+  const many = adaptSafariRuleUpdate({ addRules: [{ ...rule, condition: { ...rule.condition, regexFilter: '^(a|b|c|d|e|f|g|h|i|j|k)$' } }] })
+  assert.equal(many.addRules.length, 10)
+  assert.equal(errors.mock.callCount(), 1, 'dropping extra patterns is reported, not silent')
+})
+
+test('Safari mirrors the home viewport scroll to the document at most every 100 ms', async (t) => {
+  let now = 0
+  let onViewportScroll
+  const timers = []
+  const mirrored = []
+  const fakeWindow = {
+    scrollY: 0,
+    scrollTo: ({ top }) => {
+      fakeWindow.scrollY = top
+      mirrored.push(top)
+    },
+    addEventListener() {},
+    removeEventListener() {},
+  }
+  globalThis.window = fakeWindow
+  globalThis.document = {
+    documentElement: { style: {} },
+    createElement: () => ({ setAttribute() {}, style: {}, remove() {} }),
+    body: { appendChild() {} },
+  }
+  globalThis.ResizeObserver = class { observe() {} disconnect() {} }
+  t.after(() => {
+    delete globalThis.window
+    delete globalThis.document
+    delete globalThis.ResizeObserver
+  })
+  t.mock.method(performance, 'now', () => now)
+  t.mock.method(globalThis, 'setTimeout', (callback) => {
+    timers.push(callback)
+    return timers.length
+  })
+  t.mock.method(globalThis, 'clearTimeout', () => {})
+  const viewport = {
+    scrollTop: 0,
+    scrollHeight: 10_000,
+    querySelector: () => null,
+    addEventListener: (_type, listener) => {
+      onViewportScroll = listener
+    },
+    removeEventListener() {},
+    scrollTo() {},
+  }
+  const { installScrollBridge } = await loadModule('src/contentScripts/features/scrollBridge.ts')
+  installScrollBridge(viewport)
+
+  // About 300 ms of scrolling at 60 fps: every frame would be 18 syncs, the old Safari path 0.
+  for (let frame = 1; frame <= 18; frame++) {
+    now = frame * 16.7
+    viewport.scrollTop = frame * 20
+    onViewportScroll()
+  }
+  assert.equal(mirrored.length, 3, `document synced ${mirrored.length} times while scrolling`)
+
+  timers.at(-1)()
+  assert.equal(fakeWindow.scrollY, viewport.scrollTop, 'final position synced once scrolling stops')
+})

@@ -1,11 +1,14 @@
 # Build BewlyCat for Safari and install it as /Applications/BewlyCat.app, signed with your
 # Apple Development certificate (free Personal Team) so Safari keeps it across restarts.
 # Needs your Apple ID in Xcode → Settings → Apple Accounts, plus an "Apple Development" certificate
-# (Personal Team → Manage Certificates… → + → Apple Development). The certificate lasts a year.
+# (Personal Team → Manage Certificates… → + → Apple Development). It lasts a year; make a new one when it expires.
 # Restart Safari afterwards: it keeps running the copy it loaded at launch.
 
-# Team ID is read from your Apple Development certificate; override with `make ship TEAM=XXXXXXXXXX`.
-TEAM ?= $(shell security find-certificate -c "Apple Development" -p 2>/dev/null | openssl x509 -noout -subject 2>/dev/null | sed -n 's/.*OU=\([A-Z0-9]*\).*/\1/p')
+# Team ID is read from your first usable Apple Development signing identity: lines macOS marks CSSMERR_*
+# (expired, revoked, untrusted) are skipped. Several Apple IDs? Override with `make ship TEAM=XXXXXXXXXX`.
+TEAM ?= $(shell security find-identity -p codesigning 2>/dev/null | grep '"Apple Development: ' | grep -v CSSMERR | head -1 \
+	| sed -E 's/.*"(.*)".*/\1/' | xargs -I{} security find-certificate -c {} -p 2>/dev/null \
+	| openssl x509 -noout -subject 2>/dev/null | sed -n 's/.*OU=\([A-Z0-9]*\).*/\1/p')
 # Building it yourself? Pick your own ID, e.g. `make ship BUNDLE_ID=com.yourname.BewlyCat`.
 BUNDLE_ID ?= com.misakakioo.BewlyCat
 APP := extension-safari-macos/build/Build/Products/Release/BewlyCat.app
