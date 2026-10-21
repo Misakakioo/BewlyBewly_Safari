@@ -2,6 +2,8 @@
 import type { Manifest } from 'webextension-polyfill'
 
 import { CONTENT_SCRIPT_EXCLUDE_MATCHES } from '../constants/contentScript'
+import { BILIBILI_LOCALE_PATH_SEGMENTS, MAIN_SITE_ORIGIN_MATCH, withLocalePaths } from './matchPatterns'
+import { getSafariPageStylePaths, SAFARI_PAGE_STYLE_DIR, SAFARI_PAGE_STYLES } from './pageStyles'
 import { getSafariExtensionVersion } from './version'
 
 // 只注入 BewlyCat 实际接管的页面，且不注入 iframe（抽屉打开方式因此不可用）。
@@ -30,18 +32,6 @@ const SAFARI_MAIN_SITE_PATH_MATCHES = [
   '*://www.bilibili.com/read/*',
   '*://www.bilibili.com/404*',
 ]
-
-// 主站多语言页面在路径前加语言段（如 /ja/video/...），与 src/utils/bilibiliLocale.ts 的列表保持一致。
-const BILIBILI_LOCALE_PATH_SEGMENTS = ['en', 'th', 'vi', 'id', 'ja', 'zh-hant', 'zh-hans', 'ar', 'pt', 'es', 'tr', 'ru', 'ms']
-
-const MAIN_SITE_ORIGIN_MATCH = '*://www.bilibili.com'
-
-function withLocalePaths(matches: string[]) {
-  return matches.flatMap(match => [
-    match,
-    ...BILIBILI_LOCALE_PATH_SEGMENTS.map(locale => `${MAIN_SITE_ORIGIN_MATCH}/${locale}${match.slice(MAIN_SITE_ORIGIN_MATCH.length)}`),
-  ])
-}
 
 const SAFARI_CONTENT_SCRIPT_MATCHES = [
   ...withLocalePaths(SAFARI_MAIN_SITE_PATH_MATCHES),
@@ -72,12 +62,28 @@ export function applySafariManifest(manifest: Manifest.WebExtensionManifest, ups
     permission === 'declarativeNetRequest' ? 'declarativeNetRequestWithHostAccess' : permission,
   )
 
-  manifest.content_scripts = manifest.content_scripts?.map(script => ({
-    ...script,
-    matches: [...SAFARI_CONTENT_SCRIPT_MATCHES],
-    exclude_matches: [...SAFARI_CONTENT_SCRIPT_EXCLUDE_MATCHES],
-    all_frames: false,
-  }))
+  manifest.content_scripts = [
+    ...(manifest.content_scripts ?? []).map(script => ({
+      ...script,
+      matches: [...SAFARI_CONTENT_SCRIPT_MATCHES],
+      exclude_matches: [...SAFARI_CONTENT_SCRIPT_EXCLUDE_MATCHES],
+      all_frames: false,
+    })),
+    // 页面专属样式按地址注入，排在全局样式之后（与原来在 style.css 中的先后一致），见 ./pageStyles.ts。
+    ...SAFARI_PAGE_STYLES.map(style => ({
+      matches: [...style.matches],
+      exclude_matches: [...SAFARI_CONTENT_SCRIPT_EXCLUDE_MATCHES],
+      css: getSafariPageStylePaths(style).map(path => `./${path}`),
+      run_at: 'document_start' as const,
+      all_frames: false,
+    })),
+  ]
+
+  // 站内无刷新跳到另一类页面时，由内容脚本按需加载该页样式（./pageStyleFallback.ts）。
+  for (const resource of manifest.web_accessible_resources ?? []) {
+    if (typeof resource === 'object' && 'resources' in resource)
+      resource.resources.push(`${SAFARI_PAGE_STYLE_DIR}/*`)
+  }
 
   const record = manifest as Record<string, any>
   for (const resource of record.declarative_net_request?.rule_resources ?? []) {

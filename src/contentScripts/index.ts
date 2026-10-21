@@ -9,6 +9,7 @@ import { BEWLY_IFRAME_DRAWER_HOST_CLASS, BEWLY_MOUNTED, IFRAME_DARK_MODE_CHANGE,
 import { localSettings, localSettingsReady, settings, settingsReady } from '~/logic'
 import { setupApp } from '~/logic/common-setup'
 import { stopSafariLiveBadgeAnimation } from '~/safari/liveBadgeAnimation'
+import { setupSafariPageStyleFallback } from '~/safari/pageStyleFallback'
 import { hideSafariPageScrollbar } from '~/safari/scrollViewport'
 import { mountSafariUpdateBanner } from '~/safari/updateCheck/banner'
 import { useTopBarStore } from '~/stores/topBarStore'
@@ -88,6 +89,9 @@ if (shouldInitializeContentScript) {
   contentScriptGlobal.__BEWLYCAT_CONTENT_SCRIPT_INITIALIZED__ = true
   // 先于 B 站脚本注册快捷键监听，覆盖其默认快捷键时才能先拦截事件。
   installShortcutListener()
+  // Safari 页面专属样式经清单按地址注入；站内跳到另一类页面时补加载，见 src/safari/pageStyles.ts。
+  if (__SAFARI__)
+    setupSafariPageStyleFallback()
   browser.runtime.onMessage.addListener((message: unknown) => {
     if (typeof message === 'object' && message !== null && 'type' in message && message.type === CONTENT_SCRIPT_PING) {
       const expected = 'expectedIdentity' in message ? message.expectedIdentity : undefined

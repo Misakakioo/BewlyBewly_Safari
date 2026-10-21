@@ -1,4 +1,4 @@
-// Run with: node --test scripts/safari/request-login.test.mjs
+// Run with: node --test scripts/safari/safari.test.mjs
 import assert from 'node:assert/strict'
 import { Buffer } from 'node:buffer'
 import { createRequire } from 'node:module'
@@ -164,4 +164,52 @@ test('Safari split rules use their own ID range, so removal never touches upstre
   const many = adaptSafariRuleUpdate({ addRules: [{ ...rule, condition: { ...rule.condition, regexFilter: '^(a|b|c|d|e|f|g|h|i|j|k)$' } }] })
   assert.equal(many.addRules.length, 10)
   assert.equal(errors.mock.callCount(), 1, 'dropping extra patterns is reported, not silent')
+})
+
+test('Safari injects each page stylesheet for every URL BewlyCat styles as that page', async (t) => {
+  globalThis.safariTestBrowser = { runtime: { getURL: path => `safari-web-extension://x/${path}` } }
+  globalThis.location = { href: 'https://www.bilibili.com/' }
+  t.after(() => {
+    delete globalThis.safariTestBrowser
+    delete globalThis.location
+  })
+  const { getSafariFallbackPageStyle } = await loadModule('src/safari/pageStyleFallback.ts')
+  const classes = (...names) => ({ contains: name => names.includes(name) })
+
+  // URL → page class that src/styles/adaptedStyles/index.ts assigns: the manifest must already cover it.
+  const covered = {
+    'https://www.bilibili.com/': 'homePage',
+    'https://www.bilibili.com/?spm_id_from=333': 'homePage',
+    'https://www.bilibili.com/ja/': 'homePage',
+    'https://www.bilibili.com/index.html': 'homePage',
+    'https://message.bilibili.com/#/reply': 'notificationsPage',
+    'https://t.bilibili.com/': 'momentsPage',
+    'https://www.bilibili.com/opus/123': 'momentsPage',
+    'https://www.bilibili.com/account/history': 'historyPage',
+    'https://www.bilibili.com/history': 'historyPage',
+    'https://www.bilibili.com/watchlater/list': 'watchLaterPage',
+    'https://space.bilibili.com/v/note-list': 'notePage',
+    'https://space.bilibili.com/2/favlist': 'userSpacePage',
+    'https://search.bilibili.com/all?keyword=x': 'searchPage',
+    'https://www.bilibili.com/video/BV1GJ411x7h7/': 'videoPage',
+    'https://www.bilibili.com/list/watchlater?bvid=x': 'videoPage',
+    'https://www.bilibili.com/bangumi/play/ep1': 'animePlaybackAndMoviePage',
+    'https://www.bilibili.com/anime/': 'animePage',
+    'https://www.bilibili.com/guochuang/': 'animePage',
+    'https://www.bilibili.com/movie/': 'channelPage',
+    'https://www.bilibili.com/read/cv1': 'articlesPage',
+    'https://www.bilibili.com/v/topic/detail?topic_id=1': 'topicPage',
+    'https://www.bilibili.com/404': 'error404Page',
+    'https://member.bilibili.com/platform/home': 'creativeCenterPage',
+    'https://account.bilibili.com/account/home': 'accountSettingsPage',
+    'https://account.bilibili.com/big': 'premiumPage',
+    'https://passport.bilibili.com/login': 'loginPage',
+  }
+  for (const [url, className] of Object.entries(covered))
+    assert.equal(getSafariFallbackPageStyle(classes(className), url), undefined, `${className} not injected for ${url}`)
+
+  // In-page navigation to another page type: the manifest only covered the first URL, so load it.
+  assert.equal(getSafariFallbackPageStyle(classes('premiumPage'), 'https://account.bilibili.com/account/home')?.className, 'premiumPage')
+  assert.equal(getSafariFallbackPageStyle(classes('videoPage'), 'https://www.bilibili.com/')?.className, 'videoPage')
+  assert.equal(getSafariFallbackPageStyle(classes(), 'https://www.bilibili.com/'), undefined)
 })
