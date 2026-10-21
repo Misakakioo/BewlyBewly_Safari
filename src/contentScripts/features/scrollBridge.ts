@@ -1,5 +1,3 @@
-const SAFARI_MIRROR_INTERVAL_MS = 100
-
 /**
  * Mirror the custom homepage viewport onto the document so scroll commands
  * targeting document.scrollingElement can reach content inside its shadow root.
@@ -23,7 +21,6 @@ export function installScrollBridge(viewport: HTMLElement): () => void {
   let mirroredDocumentTop: number | null = null
   let scrollDriver: 'document' | 'viewport' | null = null
   let releaseDriverTimer: ReturnType<typeof setTimeout> | undefined
-  let lastSafariMirrorAt = Number.NEGATIVE_INFINITY
 
   function keepScrollDriver(driver: 'document' | 'viewport') {
     scrollDriver = driver
@@ -64,16 +61,11 @@ export function installScrollBridge(viewport: HTMLElement): () => void {
     if (scrollDriver === 'document')
       return
 
-    // Safari：每帧同步 window.scrollTo 占滚动时主线程约 12%，并让页面每帧触发 document 滚动事件。
-    // 改为滚动中最多每 SAFARI_MIRROR_INTERVAL_MS 同步一次：依赖文档滚动位置或 document 滚动事件的代码
-    // （布局编辑描边、B 站页面脚本、键盘滚动扩展）最多滞后这么久，停止滚动后再由 keepScrollDriver 的定时器补齐。
+    // Safari：每帧同步 window.scrollTo 占滚动时主线程约 12%，并让页面每帧触发 document 滚动事件；
+    // #bewly 为 fixed，文档滚动位置不影响显示，改为停止滚动后由 keepScrollDriver 的定时器同步一次。
     if (__SAFARI__) {
-      const now = performance.now()
-      if (now - lastSafariMirrorAt < SAFARI_MIRROR_INTERVAL_MS) {
-        keepScrollDriver('viewport')
-        return
-      }
-      lastSafariMirrorAt = now
+      keepScrollDriver('viewport')
+      return
     }
 
     keepScrollDriver('viewport')
