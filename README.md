@@ -17,7 +17,7 @@
 | [IgnatAi401/BewlyCat-Safari](https://github.com/IgnatAi401/BewlyCat-Safari) | BewlyCat 的 Safari 适配与性能优化（请求头规则、登录检测、样式、图片加载等），本仓库基于它的 `safari` 分支。改动见 [CHANGELOG-safari.md](CHANGELOG-safari.md)。 |
 | [Jingyuan-Zheng/BewlyBewly_Safari](https://github.com/Jingyuan-Zheng/BewlyBewly_Safari) | 本仓库 fork 自此。它提供 Safari 版 BewlyBewly v0.41.1 的安装包，`main` 分支保留了那份代码。 |
 
-当前版本：BewlyCat **v1.8.1**（Safari 修订号 `1.8.1.1`）。
+当前版本：BewlyCat **v1.8.2**（Safari 修订号 `1.8.2.1`）。
 
 ## 本仓库的改动
 

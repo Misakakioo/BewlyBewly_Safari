@@ -6,7 +6,7 @@ import { createApp } from 'vue'
 import { startIframeThemeListener, useDark } from '~/composables/useDark'
 import { CONTENT_SCRIPT_COMMIT, CONTENT_SCRIPT_PING, CONTENT_SCRIPT_PONG } from '~/constants/contentScript'
 import { BEWLY_IFRAME_DRAWER_HOST_CLASS, BEWLY_MOUNTED, IFRAME_DARK_MODE_CHANGE, IFRAME_TOP_BAR_CHANGE } from '~/constants/globalEvents'
-import { localSettings, settings, settingsReady } from '~/logic'
+import { localSettings, localSettingsReady, settings, settingsReady } from '~/logic'
 import { setupApp } from '~/logic/common-setup'
 import { stopSafariLiveBadgeAnimation } from '~/safari/liveBadgeAnimation'
 import { hideSafariPageScrollbar } from '~/safari/scrollViewport'
@@ -24,7 +24,7 @@ import { findLeafActiveElement } from '~/utils/element'
 import { initFavoriteDialogEnhancement } from '~/utils/favoriteDialog'
 import { i18n } from '~/utils/i18n'
 import { runWhenIdle } from '~/utils/lazyLoad'
-import { getLocalWallpaper, hasLocalWallpaper, isLocalWallpaperUrl } from '~/utils/localWallpaper'
+import { getLocalWallpaper, hasLocalWallpaper, isLocalWallpaperUrl, localWallpapersLoaded } from '~/utils/localWallpaper'
 import { getCookie, injectCSS, isElectron, isHomePage, isInIframe, isNotificationPage, isVideoOrBangumiPage, isVideoPlaybackPage, isWatchLaterListPage } from '~/utils/main'
 import { initNativeFavoriteSeasonPlayAllIntercept } from '~/utils/nativeFavoriteSeasonPlayAll'
 import { createPageSettingsPayload, writePageBootSnapshot } from '~/utils/pageSettingsProtocol'
@@ -42,6 +42,7 @@ import { recordVideoVisitFromUrl } from '~/utils/videoVisitHistory'
 import { ensureResponsiveViewport } from '~/utils/viewportMeta'
 
 import { version } from '../../package.json'
+import { initAmbilightControl } from './ambilightControl'
 import { initBewlyWidescreenControl } from './bewlyWidescreenControl'
 import { setupFavoriteOrganizerTripleSync } from './features/favoriteOrganizerTripleSync'
 import { setupIframePhotoViewerDetector } from './features/iframePhotoViewerDetector'
@@ -51,6 +52,7 @@ import { setupOpusDetailDrawerLayout } from './features/opusDetailDrawerLayout'
 import { setupOriginalMomentsFilter } from './features/originalMomentsFilter'
 import { setupVideoWatchProgress } from './features/videoWatchProgress'
 import { setupWatchLaterAutoRemove } from './features/watchLaterAutoRemove'
+import { initImmersiveFeedFrame } from './immersiveFeedFrame'
 import { initListenVideoFeature } from './listenVideoFeature'
 import { initLocalLoudnessControl } from './localLoudnessControl'
 import type { PageLoadingGuard } from './pageLoading'
@@ -1442,11 +1444,14 @@ else if (shouldInitializeContentScript) {
 
     contentScriptGlobal.__BEWLYCAT_PAGE_LOADING__?.dispose()
 
+    // 需早于快捷键注册与宽屏布局：接管侧栏面板并优先处理沉浸式切换按键
+    initImmersiveFeedFrame()
     initVideoAspectRatioMemory()
     initVideoQualityMemory()
     initVideoScreenshotControl()
     initListenVideoFeature()
     initLocalLoudnessControl()
+    initAmbilightControl()
     if (isVideoPlaybackPage() || isVideoOrBangumiPage())
       setupShortcutHandlers()
     runWhenNativeVideoHeaderStable(initBewlyWidescreenControl)
@@ -1761,7 +1766,16 @@ else if (shouldInitializeContentScript) {
   }, { passive: true })
 
   // 验证和恢复本地壁纸
-  function validateAndRestoreLocalWallpaper() {
+  async function validateAndRestoreLocalWallpaper() {
+    // 只由顶层页面执行，避免每个 iframe 重复写入同样的清理结果。
+    if (isInIframe())
+      return
+
+    // 两份本地存储读完后再判断。壁纸数据体积大、读取慢，提前判断会把仍存在的本地壁纸误判为丢失并清掉引用。
+    const [, wallpapersLoaded] = await Promise.all([localSettingsReady, localWallpapersLoaded])
+    if (!wallpapersLoaded)
+      return
+
     const localWallpaper = localSettings.value.locallyUploadedWallpaper
     if (localWallpaper?.isLocal && localWallpaper.id) {
       if (!hasLocalWallpaper(localWallpaper.id)) {
@@ -1794,7 +1808,7 @@ else if (shouldInitializeContentScript) {
   }
 
   // 在应用启动时验证本地壁纸
-  validateAndRestoreLocalWallpaper()
+  void validateAndRestoreLocalWallpaper()
 
   // 启动自动播放用户修改监听
   startAutoPlayUserChangeMonitoring()

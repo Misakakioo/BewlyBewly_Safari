@@ -31,6 +31,7 @@ import emitter from '~/utils/mitt'
 import { navigateToPluginSearchResults } from '~/utils/searchNavigation'
 import { applyPendingSettingsMigrations, formatSettingsMigrationConfirmMessage, getPendingSettingsMigrationChoices, hasPendingSettingsMigrations } from '~/utils/settingsMigration'
 import { isComponentVisible } from '~/utils/topBarBadge'
+import { canOpenInVideoDialog } from '~/utils/videoDialog'
 
 import { setupNecessarySettingsWatchers } from './necessarySettingsWatchers'
 
@@ -706,7 +707,7 @@ const layoutEditContextActions = computed<LayoutEditQuickSettingsAction[]>(() =>
         icon: 'mingcute:settings-3-line',
         menu: 'BewlyComponents',
         secondaryPage: 'topbar',
-        targetTitleKey: 'settings.auto_hide_top_bar',
+        targetTitleKey: 'settings.video_page_top_bar_config',
       },
     ]
   }
@@ -1089,6 +1090,9 @@ watch(isHomeTabSwitching, (switching) => {
 
 const iframeDrawerURL = ref<string>('')
 const showIframeDrawer = ref<boolean>(false)
+// 每次打开分配新 id，替换已打开的弹窗时重新挂载 iframe
+const videoDialog = ref<{ id: number, url: string } | null>(null)
+let videoDialogId = 0
 
 // 添加活跃抽屉状态管理
 const activeDrawer = ref<DrawerType>(DrawerType.None)
@@ -1604,6 +1608,15 @@ function openIframeDrawer(url: string) {
   showIframeDrawer.value = true
 }
 
+function openVideoDialog(url: string) {
+  if (!canOpenInVideoDialog(url)) {
+    openLinkToNewTab(url)
+    return
+  }
+
+  videoDialog.value = { id: ++videoDialogId, url }
+}
+
 /**
  * Checks if the current viewport has a scrollbar.
  * @returns {Promise<boolean>} Returns true if the viewport has a scrollbar, false otherwise.
@@ -1668,6 +1681,7 @@ provide<BewlyAppProvider>('BEWLY_APP', {
   handleForwardRefresh,
   undoForwardState,
   openIframeDrawer,
+  openVideoDialog,
   haveScrollbar,
   activeDrawer,
   setActiveDrawer,
@@ -2110,6 +2124,13 @@ if (settings.value.cleanUrlArgument) {
       v-if="showIframeDrawer"
       :url="iframeDrawerURL"
       @close="showIframeDrawer = false"
+    />
+
+    <VideoDialog
+      v-if="videoDialog"
+      :key="videoDialog.id"
+      :url="videoDialog.url"
+      @close="videoDialog = null"
     />
 
     <!-- Static confirm overlay: no Transition/Teleport (see finishConfirmDialog). -->
