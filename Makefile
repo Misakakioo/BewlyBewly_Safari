@@ -1,11 +1,19 @@
-# Build BewlyCat for Safari as ~/Desktop/BewlyCat-Safari.zip.
-# Load it: Safari → Settings → Developer → tick "Allow unsigned extensions" → "Add Temporary Extension…" → pick the zip.
-# Safari drops temporary extensions when it quits, so re-add the zip after each restart.
-ZIP := $(HOME)/Desktop/BewlyCat-Safari.zip
+# Build BewlyCat for Safari and install it as /Applications/BewlyCat.app, signed with your
+# Apple Development certificate (free Personal Team) so Safari keeps it across restarts.
+# Needs your Apple ID in Xcode → Settings → Apple Accounts, plus an "Apple Development" certificate
+# (Personal Team → Manage Certificates… → + → Apple Development). The certificate lasts a year.
+TEAM ?= 3Y6S6AL3SL
+APP := extension-safari-macos/build/Build/Products/Release/BewlyCat.app
 
 ship:
 	pnpm build-safari
-	rm -f $(ZIP)
-	ditto -c -k --norsrc extension-safari $(ZIP)
+	xcrun safari-web-extension-converter ./extension-safari --project-location ./extension-safari-macos \
+		--macos-only --swift --app-name BewlyCat --bundle-identifier com.misakakioo.BewlyCat --no-open --no-prompt --force
+	xcodebuild -quiet -project extension-safari-macos/BewlyCat/BewlyCat.xcodeproj -scheme BewlyCat -configuration Release \
+		-derivedDataPath extension-safari-macos/build -allowProvisioningUpdates \
+		CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=$(TEAM) CODE_SIGN_IDENTITY="Apple Development" \
+		MARKETING_VERSION=$$(node -p "require('./extension-safari/manifest.json').version") build
+	rm -rf /Applications/BewlyCat.app && ditto $(APP) /Applications/BewlyCat.app
+	open /Applications/BewlyCat.app
 
 .PHONY: ship
