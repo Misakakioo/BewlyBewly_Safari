@@ -14,7 +14,11 @@ export async function requestSafariApiInPage(type: string, message: Record<strin
   }
   catch (error) {
     // 网络层失败（如某接口不允许页面跨域）时退回后台请求，至少保留未登录可用的数据。
-    if (!(error instanceof TypeError) || signal?.aborted)
+    // 上游请求层将异常包装成 Error，原始类型保留在 originalError 字符串中。
+    const isNetworkError = error instanceof TypeError
+      || (error instanceof Error && 'originalError' in error
+        && typeof error.originalError === 'string' && error.originalError.startsWith('TypeError:'))
+    if (!isNetworkError || signal?.aborted)
       throw error
     return signal ? sendAbortableApiMessage(type, message, signal) : sendMessage(type, message)
   }

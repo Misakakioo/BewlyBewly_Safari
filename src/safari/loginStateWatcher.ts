@@ -36,7 +36,7 @@ export function setupSafariLoginStateWatcher(onLoginStateChanged: () => void) {
     setSafariLoginSnapshot(current)
     if (current === undefined)
       return
-    if (lastSnapshot !== undefined && current !== lastSnapshot)
+    if (current !== lastSnapshot)
       onLoginStateChanged()
     lastSnapshot = current
   }
