@@ -3,6 +3,7 @@ import { useBewlyApp } from '~/composables/useAppProvider'
 import { useDark } from '~/composables/useDark'
 import { IFRAME_DARK_MODE_CHANGE, IFRAME_TOP_BAR_CHANGE } from '~/constants/globalEvents'
 import { settings } from '~/logic'
+import { ensureSafariIframeTopBarStyle } from '~/safari/iframeTopBar'
 import { shouldShowOriginalBilibiliTopBar } from '~/utils/bilibiliTopBar'
 import { releaseIframeMedia } from '~/utils/iframe'
 
@@ -107,6 +108,8 @@ function syncIframeTopBarVisibility() {
 
   // 同源时直接同步类名，避免 iframe 消息监听器尚未就绪时短暂显示原版顶栏
   try {
+    // Safari 不向 iframe 注入内容脚本，需外层补上这两个类对应的样式，见 src/safari/iframeTopBar.ts。
+    ensureSafariIframeTopBarStyle(iframeWindow.document)
     iframeWindow.document.documentElement.classList.toggle('remove-top-bar', !showOriginal)
     iframeWindow.document.documentElement.classList.toggle('remove-custom-navbar', enableTopBar)
   }
