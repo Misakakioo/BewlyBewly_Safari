@@ -227,10 +227,13 @@ export async function initWbiKeys(options: WbiKeyOptions = {}): Promise<boolean>
         const cookieStr = noCookie ? '' : await getBilibiliCookies()
         signal.throwIfAborted()
 
-        const headers: HeadersInit = {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://www.bilibili.com/',
-        }
+        // Safari 在页面内请求（见 src/safari/pageRequest.ts），自定义 UA 会触发跨域预检，交给浏览器默认值。
+        const headers: HeadersInit = __SAFARI__
+          ? {}
+          : {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Referer': 'https://www.bilibili.com/',
+            }
 
         if (cookieStr)
           headers.Cookie = cookieStr

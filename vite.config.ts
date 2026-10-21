@@ -48,6 +48,9 @@ export const sharedConfig: UserConfig = {
       '__BUILD_COMMIT__': JSON.stringify(buildCommit),
       '__SAFARI__': JSON.stringify(isSafari),
       'process.env.NODE_ENV': JSON.stringify(isDev ? 'development' : 'production'),
+      // 与 tsup 保持一致：Safari 版在内容脚本里复用后台请求逻辑（src/safari/pageRequest.ts）。
+      'process.env.FIREFOX': isFirefox ? 'true' : 'false',
+      'process.env.SAFARI': isSafari ? 'true' : 'false',
       '__VUE_OPTIONS_API__': JSON.stringify(true),
       '__VUE_PROD_DEVTOOLS__': JSON.stringify(false),
       'preventAssignment': true,

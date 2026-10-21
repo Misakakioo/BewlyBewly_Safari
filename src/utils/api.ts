@@ -1,6 +1,7 @@
 import type { API_COLLECTION } from '~/background/messageListeners/api'
 import { isSearchResultApiMethod } from '~/constants/searchApi'
 import { settings } from '~/logic'
+import { requestSafariApiInPage } from '~/safari/pageRequest'
 import { sendAbortableApiMessage, sendMessage } from '~/utils/messaging'
 
 export interface ApiRequestOptions {
@@ -78,6 +79,10 @@ export class APIClient {
                 // 去个性化搜索仍经后台获取匿名 WBI key 并签名，只省略 Cookie。
                 if (isSearchResultRequest && settings.value.depersonalizeSearchResults)
                   message.bewlyNoCookie = true
+
+                // Safari 的后台请求不带页面登录态，改在页面内请求，见 src/safari/pageRequest.ts。
+                if (__SAFARI__)
+                  return requestSafariApiInPage(p as string, message, request?.signal)
 
                 return request?.signal
                   ? sendAbortableApiMessage(p as string, message, request.signal)

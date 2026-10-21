@@ -132,10 +132,16 @@ async function doCachedRequest(message: Message, api: API, tab?: Browser.Tabs.Ta
   if (!noCookie) {
     try {
       // Firefox 使用实际请求的容器 Cookie；其他浏览器与后台 fetch 的默认 Cookie 保持一致。
-      const accountCookie = cookies
-        ? cookies.find(cookie => cookie.name === 'DedeUserID')
-        : await browser.cookies.get({ url: api.url, name: 'DedeUserID' })
-      accountId = __SAFARI__ ? await getSafariAccountId() : (accountCookie?.value ?? '')
+      // Safari 在内容脚本中执行（见 src/safari/pageRequest.ts），没有 cookies API，账号取自 nav 接口。
+      if (__SAFARI__) {
+        accountId = await getSafariAccountId()
+      }
+      else {
+        const accountCookie = cookies
+          ? cookies.find(cookie => cookie.name === 'DedeUserID')
+          : await browser.cookies.get({ url: api.url, name: 'DedeUserID' })
+        accountId = accountCookie?.value ?? ''
+      }
     }
     catch {
       // 无法确认账号时直接请求，避免误用其他账号的推荐。
