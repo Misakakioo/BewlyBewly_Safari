@@ -1,8 +1,10 @@
 import browser from 'webextension-polyfill'
 
-export const SAFARI_REPO_URL = 'https://github.com/IgnatAi401/BewlyCat-Safari'
+// 本仓库以签名 App（make ship）安装，含登录修复；检查本仓库的 Release，而不是 IgnatAi401/BewlyCat-Safari
+// 的临时扩展压缩包（装上会出现两个 BewlyCat，且没有登录修复）。尚无 Release 时接口返回 404，视为没有新版本。
+export const SAFARI_REPO_URL = 'https://github.com/Misakakioo/BewlyBewly_Safari'
 export const SAFARI_RELEASES_URL = `${SAFARI_REPO_URL}/releases`
-export const SAFARI_LATEST_RELEASE_API = 'https://api.github.com/repos/IgnatAi401/BewlyCat-Safari/releases/latest'
+export const SAFARI_LATEST_RELEASE_API = 'https://api.github.com/repos/Misakakioo/BewlyBewly_Safari/releases/latest'
 
 export const UPDATE_GET_STATE_MESSAGE = 'bewly-safari:update:get-state'
 export const UPDATE_CHECK_NOW_MESSAGE = 'bewly-safari:update:check-now'
@@ -106,7 +108,7 @@ export function getSafariUpdateCopy(locale: string): SafariUpdateCopy {
   if (normalized === 'cmn-tw' || normalized === 'jyut' || normalized.startsWith('zh-tw') || normalized.startsWith('zh-hk')) {
     return {
       title: 'BewlyCat Safari 版有新版本 v{version}',
-      description: '臨時擴充功能無法自動更新，請下載新版本壓縮檔並重新加入。',
+      description: '在專案資料夾執行 git pull && make ship，然後重新啟動 Safari。',
       view: '查看更新',
       ignore: '忽略此版本',
       later: '稍後提醒',
@@ -123,7 +125,7 @@ export function getSafariUpdateCopy(locale: string): SafariUpdateCopy {
   if (normalized === 'cmn-cn' || normalized.startsWith('zh')) {
     return {
       title: 'BewlyCat Safari 版有新版本 v{version}',
-      description: '临时扩展无法自动更新，请下载新版本压缩包并重新添加。',
+      description: '在项目目录运行 git pull && make ship，然后重启 Safari。',
       view: '查看更新',
       ignore: '忽略此版本',
       later: '稍后提醒',
@@ -139,7 +141,7 @@ export function getSafariUpdateCopy(locale: string): SafariUpdateCopy {
   }
   return {
     title: 'BewlyCat for Safari v{version} is available',
-    description: 'Temporary extensions cannot update themselves. Download the new zip from the release and re-add the extension.',
+    description: 'Run git pull && make ship in the project folder, then restart Safari.',
     view: 'View update',
     ignore: 'Skip this version',
     later: 'Remind me later',

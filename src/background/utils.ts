@@ -5,7 +5,7 @@
 import type Browser from 'webextension-polyfill'
 import browser from 'webextension-polyfill'
 
-import { getSafariAccountId } from '~/safari/account'
+import { parseDedeUserID } from '~/logic/loginStatus'
 import { waitWithSignal } from '~/utils/abort'
 
 import { createApiResponseCache } from './apiResponseCache'
@@ -132,9 +132,10 @@ async function doCachedRequest(message: Message, api: API, tab?: Browser.Tabs.Ta
   if (!noCookie) {
     try {
       // Firefox 使用实际请求的容器 Cookie；其他浏览器与后台 fetch 的默认 Cookie 保持一致。
-      // Safari 在内容脚本中执行（见 src/safari/pageRequest.ts），没有 cookies API，账号取自 nav 接口。
+      // Safari 在内容脚本中执行（见 src/safari/pageRequest.ts），没有 cookies API：每次读取页面上的
+      // DedeUserID，切换账号后缓存键随之改变。后台（退回请求时）读不到页面 Cookie，键为空，与其未登录请求一致。
       if (__SAFARI__) {
-        accountId = await getSafariAccountId()
+        accountId = String(parseDedeUserID(globalThis.document?.cookie ?? '') ?? '')
       }
       else {
         const accountCookie = cookies

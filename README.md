@@ -50,7 +50,7 @@ make ship BUNDLE_ID=com.yourname.BewlyCat
 
 然后重启 Safari：Safari 会一直使用启动时加载的版本。
 
-扩展内的「新版本」提示检查的是 IgnatAi401/BewlyCat-Safari 的 Release。看到提示时，在这里 `git pull` 并重新构建即可。
+扩展内的「新版本」提示检查本仓库的 [Releases](https://github.com/Misakakioo/BewlyBewly_Safari/releases)（目前还没有发布 Release，所以不会提示）。
 
 ### 不用 Xcode 的临时方式
 

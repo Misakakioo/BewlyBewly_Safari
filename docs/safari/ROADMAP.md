@@ -47,9 +47,9 @@
 | `src/composables/useDark.ts` | `syncBilibiliTheme()` 末尾 | 主题切换转交页面脚本 |
 | `src/inject/index.ts` | `COMMENT_SHADOW_STYLE_PATCHES` 末尾、`bili-comment-user-info` 更新回调开头、`message` 监听之前 | 评论区主题色样式（用户名样式单独注入，不进通用样式表，以免跳过性别/楼主/IP 属地处理）；注册 Safari 消息桥（派发 `global.themeChange`）；`deferSafariHiddenHomepageFeed()`：BewlyCat 首页接管期间暂缓被隐藏的原首页的信息流请求（原首页会连续加载 10 页推荐），切回原版首页时再发出；`updateCommentReplyTree()` 之前新增 `updateCommentReplyTreeAfterRender()`，评论组件增强回调中的 3 处调用改用它：`coalesceSafariCommentReplyTreeUpdate()` 把同一楼层同帧的重复重算合并到下一帧；`updateCommentReplyTree()` 开头 `noteSafariCommentReplyTreeUpdate()` 记录本帧已重算；`observeCommentReplyTreeLayout()` 的 ResizeObserver 回调中，本帧已重算过的楼层不再安排重算（尺寸变化来自重算自身写入的缩进） |
 | `src/background/index.ts` | 末尾；`syncPreventMobileRedirectRule()` 的 `updateDynamicRules` 参数 | `setupSafariUpdateCheck()`；`adaptSafariRuleUpdate()` 改写规则 |
-| `src/background/utils.ts` | `doCachedRequest()` 中 `accountId` 赋值一行 | `getSafariAccountId()`：`cookies` API 读不到 `DedeUserID`，接口缓存改用 nav 接口的账号作为键 |
+| `src/background/utils.ts` | `doCachedRequest()` 中 `accountId` 赋值一行 | Safari 在页面内执行请求，没有 `cookies` API：缓存键取页面上的 `DedeUserID` |
 | `src/background/appClient.ts` | `syncAppClientHeaderRules()` 的 `updateSessionRules` 参数 | `adaptSafariRuleUpdate()`：Safari 不支持正则 `\|` 和 `sec-ch-ua*` 请求头 |
-| `src/background/loginStateWatcher.ts` | `setupLoginStateWatcher()` 开头 | `setupSafariLoginStateWatcher()`：Safari 的 `cookies.onChanged` 不带 changeInfo，`cookies` API 读不到 B 站 Cookie，改用 nav 接口判断 |
+| `src/background/loginStateWatcher.ts` | `setupLoginStateWatcher()` 开头 | `setupSafariLoginStateWatcher()`：Safari 的 `cookies.onChanged` 不带 changeInfo，后台也看不到 B 站 Cookie；节流后通知各标签页，由标签页按页面 Cookie 自行校正 |
 | `src/contentScripts/index.ts` | `onDOMLoaded()` 末尾 | `stopSafariLiveBadgeAnimation()`：动态页「正在直播」角标的逐帧动画停在第一帧（该动画让空闲 CPU 多占约 14 个百分点）；`hideSafariPageScrollbar()`：隐藏播放页等页面的文档滚动条，避免「始终显示滚动条」时把界面往左挤；`mountSafariUpdateBanner()` |
 | `src/components/Settings/About/About.vue` | `about-maintenance` 开头；`checkGitHubRelease()` 开头；「浏览器云同步」「版本提醒」设置组与链接/贡献者卡片的 `v-if`；版本号链接 `href` | 「BewlyCat Safari」设置组（检查更新开关、立即检查）；不检查上游 Release（不显示 NEW 标记）；隐藏上游「新版本提醒」开关、依赖 Chrome 账号的「浏览器云同步」、上游 GitHub/作者主页/贡献者链接；版本号改链到本仓库 Releases |
 | `src/components/Settings/searchCatalog.ts` | 「关于」条目列表 | 设置搜索中不出现已隐藏的「浏览器云同步」「版本提醒」 |
