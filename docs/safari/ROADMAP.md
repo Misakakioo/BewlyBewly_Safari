@@ -43,7 +43,7 @@
 | `tsup.config.ts` | `define` | 定义 `__SAFARI__`（后台） |
 | `src/global.d.ts` | 顶部 | 声明 `__SAFARI__` |
 | `src/manifest.ts` | `getManifest()` 末尾 | `applySafariManifest()`：版本号、注入范围、权限、规则集、最低 Safari 18.4 |
-| `src/logic/storage.ts` | `settings` 的 `normalize` 末尾 | `applySafariSettingsFixes()`：关闭抽屉打开方式与通知抽屉 |
+| `src/logic/storage.ts` | `settings` 的 `normalize` 末尾 | `applySafariSettingsFixes()`：关闭抽屉打开方式、通知抽屉与依赖 iframe 脚本的沉浸式模式 |
 | `src/composables/useDark.ts` | `syncBilibiliTheme()` 末尾 | 主题切换转交页面脚本 |
 | `src/inject/index.ts` | `COMMENT_SHADOW_STYLE_PATCHES` 末尾、`bili-comment-user-info` 更新回调开头、`message` 监听之前 | 评论区主题色样式（用户名样式单独注入，不进通用样式表，以免跳过性别/楼主/IP 属地处理）；注册 Safari 消息桥（派发 `global.themeChange`）；`deferSafariHiddenHomepageFeed()`：BewlyCat 首页接管期间暂缓被隐藏的原首页的信息流请求（原首页会连续加载 10 页推荐），切回原版首页时再发出；`updateCommentReplyTree()` 之前新增 `updateCommentReplyTreeAfterRender()`，评论组件增强回调中的 3 处调用改用它：`coalesceSafariCommentReplyTreeUpdate()` 把同一楼层同帧的重复重算合并到下一帧；`updateCommentReplyTree()` 开头 `noteSafariCommentReplyTreeUpdate()` 记录本帧已重算；`observeCommentReplyTreeLayout()` 的 ResizeObserver 回调中，本帧已重算过的楼层不再安排重算（尺寸变化来自重算自身写入的缩进） |
 | `src/background/index.ts` | 末尾；`syncPreventMobileRedirectRule()` 的 `updateDynamicRules` 参数 | `setupSafariUpdateCheck()`；`adaptSafariRuleUpdate()` 改写规则 |
@@ -52,7 +52,8 @@
 | `src/background/loginStateWatcher.ts` | `setupLoginStateWatcher()` 开头 | `setupSafariLoginStateWatcher()`：Safari 的 `cookies.onChanged` 不带 changeInfo，后台也看不到 B 站 Cookie；节流后通知各标签页，由标签页按页面 Cookie 自行校正 |
 | `src/contentScripts/index.ts` | `onDOMLoaded()` 末尾 | `stopSafariLiveBadgeAnimation()`：动态页「正在直播」角标的逐帧动画停在第一帧（该动画让空闲 CPU 多占约 14 个百分点）；`hideSafariPageScrollbar()`：隐藏播放页等页面的文档滚动条，避免「始终显示滚动条」时把界面往左挤；`mountSafariUpdateBanner()` |
 | `src/components/Settings/About/About.vue` | `about-maintenance` 开头；`checkGitHubRelease()` 开头；「浏览器云同步」「版本提醒」设置组与链接/贡献者卡片的 `v-if`；版本号链接 `href` | 「BewlyCat Safari」设置组（检查更新开关、立即检查）；不检查上游 Release（不显示 NEW 标记）；隐藏上游「新版本提醒」开关、依赖 Chrome 账号的「浏览器云同步」、上游 GitHub/作者主页/贡献者链接；版本号改链到本仓库 Releases |
-| `src/components/Settings/searchCatalog.ts` | 「关于」条目列表 | 设置搜索中不出现已隐藏的「浏览器云同步」「版本提醒」 |
+| `src/components/Settings/PluginComponentsAndPages/Home/Home.vue` | 「沉浸式模式」设置组的 `v-if` | 隐藏 Safari 不支持的沉浸式模式设置 |
+| `src/components/Settings/searchCatalog.ts` | 「首页」「关于」条目列表 | 设置搜索中不出现已隐藏的「沉浸式模式」「浏览器云同步」「版本提醒」 |
 | `src/contentScripts/views/Home/components/VersionReminder.vue` | `shouldShowReminder` 开头 | 隐藏上游首页「新版本说明」按钮，只保留 Safari 版自己的更新提示 |
 | `src/components/Picture.vue`、`src/components/LazyPicture.vue` | 模板中的 `<source>` 与 `<img :src>`；`LazyPicture` 的 `imageSrc` 与 `isCurrentImage()` 的 `src` 比较 | `getSafariPictureImageSrc()`：不渲染 `<source>`，`<img>` 直接加载 AVIF。WebKit 增删 `src`/`srcset` 时立即重新选源，原写法同一张图会请求 3～4 次 |
 | `src/contentScripts/features/scrollBridge.ts` | `handleViewportScroll()` 中同步 `window.scrollTo` 之前 | 首页滚动时不再每帧把位置同步到文档，停止滚动后同步一次（每帧同步占滚动时主线程约 12%） |

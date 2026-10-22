@@ -1,6 +1,7 @@
-// Safari 不向 iframe 注入脚本，依赖 iframe 的抽屉打开方式必须关闭。
+// Safari 不向 iframe 注入脚本，依赖 iframe 脚本的功能必须关闭。
 export function applySafariSettingsFixes(record: Record<string, any>) {
   record.openNotificationsPageAsDrawer = false
+  record.showImmersiveModeEntry = false
   if (record.videoCardLinkOpenMode === 'drawer')
     record.videoCardLinkOpenMode = 'newTab'
 

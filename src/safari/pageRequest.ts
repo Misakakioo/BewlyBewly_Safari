@@ -23,7 +23,7 @@ function canFallBackToBackground(type: string, message: Record<string, any>) {
   const api = fullApi?.[type]
   const isGet = typeof api === 'object' && api._fetch.method.toLowerCase() === 'get'
   const isLoggedIn = parseDedeUserID(globalThis.document?.cookie ?? '') !== undefined
-  return isGet && (!isLoggedIn || message.bewlyNoCookie === true)
+  return isGet && (!isLoggedIn || message.bewlyNoCookie === true || api._fetch.credentials === 'omit')
 }
 
 export async function requestSafariApiInPage(type: string, message: Record<string, any>, signal?: AbortSignal) {
@@ -33,7 +33,7 @@ export async function requestSafariApiInPage(type: string, message: Record<strin
     return await handleInPage(message, undefined, signal)
   }
   catch (error) {
-    // 网络层失败（如某接口不允许页面跨域）时，未登录的读取退回后台请求。
+    // 网络层失败（如某接口不允许页面跨域）时，匿名读取退回后台请求。
     if (!isNetworkError(error) || signal?.aborted || !canFallBackToBackground(type, message))
       throw error
     return signal ? sendAbortableApiMessage(type, message, signal) : sendMessage(type, message)

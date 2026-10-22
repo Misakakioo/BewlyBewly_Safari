@@ -30,6 +30,7 @@ import FilterByUserTable from './components/FilterByUserTable.vue'
 const mainStore = useMainStore()
 const { t } = useI18n()
 const toast = useToast()
+const isSafariBuild = __SAFARI__
 
 const recommendationModeOptions = computed(() => createRecommendationModeOptions(t))
 const recommendationModeOption = computed({
@@ -273,7 +274,7 @@ function handleToggleHomeTab(tab: any) {
       />
     </SettingsItemGroup>
 
-    <SettingsItemGroup :title="$t('settings.group_immersive_mode')">
+    <SettingsItemGroup v-if="!isSafariBuild" :title="$t('settings.group_immersive_mode')">
       <SettingsItem
         :title="$t('settings.show_immersive_mode_entry')"
         :desc="$t('settings.show_immersive_mode_entry_desc')"

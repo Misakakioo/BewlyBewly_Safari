@@ -34,7 +34,7 @@ function setPageCookie(cookie) {
   globalThis.document = { cookie }
 }
 
-test('Safari falls back only for logged-out reads, never for logged-in or write failures', async (t) => {
+test('Safari falls back only for anonymous reads, never for authenticated or write failures', async (t) => {
   let fallbackCalls = 0
   globalThis.safariTestBrowser = {
     runtime: {
@@ -81,6 +81,41 @@ test('Safari falls back only for logged-out reads, never for logged-in or write 
   controller.abort()
   await assert.rejects(requestSafariApiInPage('getVideoInfo', message, controller.signal), { name: 'AbortError' })
   assert.equal(fallbackCalls, 2)
+
+  // This API declares credentials: 'omit'; callers do not set bewlyNoCookie.
+  setPageCookie('DedeUserID=123')
+  t.mock.method(console, 'warn', () => {}) // The request layer retries WBI requests before surfacing network errors.
+  fetchMock.mock.mockImplementation(async (url, options) => {
+    assert.equal(options.credentials, 'omit')
+    if (new URL(url).pathname === '/x/web-interface/nav') {
+      return Response.json({ code: 0, data: { wbi_img: {
+        img_url: 'https://i0.hdslb.com/bfs/wbi/0123456789abcdef0123456789abcdef.png',
+        sub_url: 'https://i0.hdslb.com/bfs/wbi/fedcba9876543210fedcba9876543210.png',
+      } } })
+    }
+    throw new TypeError('Network failed')
+  })
+  assert.deepEqual(await requestSafariApiInPage('getNoCookieRecommendVideos', {
+    contentScriptQuery: 'getNoCookieRecommendVideos',
+  }), { fallback: true })
+  assert.equal(fallbackCalls, 3)
+})
+
+test('Safari disables immersive mode for defaults and imported settings', async () => {
+  const { applySafariSettingsFixes } = await loadModule('src/safari/settings.ts')
+  for (const record of [{}, { showImmersiveModeEntry: true }]) {
+    applySafariSettingsFixes(record)
+    assert.equal(record.showImmersiveModeEntry, false)
+    record.showImmersiveModeEntry = true
+    applySafariSettingsFixes(record)
+    assert.equal(record.showImmersiveModeEntry, false, 'later settings changes cannot re-enable it')
+  }
+})
+
+test('Safari settings search excludes immersive mode but retains recommendation options', async () => {
+  const { settingsSearchEntries } = await loadModule('src/components/Settings/searchCatalog.ts')
+  assert.ok(settingsSearchEntries.some(entry => entry.titleKey === 'settings.show_recommendation_mode_switcher'))
+  assert.ok(!settingsSearchEntries.some(entry => entry.titleKey?.includes('immersive_')))
 })
 
 test('Safari keys cached responses by the page DedeUserID, so switching accounts misses the cache', async (t) => {
