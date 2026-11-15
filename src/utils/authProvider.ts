@@ -2,6 +2,7 @@ import type { AppClientEndpoint, AppClientRequest } from '~/constants/appClient'
 import { APP_CLIENT_REQUEST } from '~/constants/appClient'
 import type { AppAuthTokens } from '~/logic/appAuthStorage'
 import { appAuthTokens, defaultAppAuthTokens, resetAppAuthTokens } from '~/logic/appAuthStorage'
+import { canRequestAppClientInPage, requestAppClientInPage } from '~/safari/appClientInPage'
 
 import { waitWithSignal } from './abort'
 import { HDAppKey } from './appSign'
@@ -12,8 +13,18 @@ export function revokeAccessKey() {
 }
 
 /** APP 接口交由后台按 PiliPlus 的请求方式签名并发出，参数无需在页面侧签名 */
-export function requestAppClient(endpoint: AppClientEndpoint, params: AppClientRequest['params']): Promise<any> {
+export async function requestAppClient(endpoint: AppClientEndpoint, params: AppClientRequest['params']): Promise<any> {
   const request: AppClientRequest = { endpoint, params, mid: appAuthTokens.value.mid }
+
+  // Safari：登录类接口先在 B 站页面内发出（见 src/safari/appClientInPage.ts）——后台请求的 Origin
+  // 是扩展自身，会被 B 站 412，带自定义头还会触发预检。页面内网络层失败（被拦或超时，code -1）
+  // 再退回后台，后台那边已按 Safari 去掉会触发预检的请求头。
+  if (__SAFARI__ && canRequestAppClientInPage(endpoint)) {
+    const inPage = await requestAppClientInPage(endpoint, params)
+    if (inPage?.code !== -1)
+      return inPage
+  }
+
   return sendMessage(APP_CLIENT_REQUEST, request)
 }
 
