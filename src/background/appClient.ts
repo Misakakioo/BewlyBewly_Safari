@@ -186,6 +186,11 @@ async function requestAppClient({ endpoint, params, mid }: AppClientRequest) {
   try {
     await appClientHeaderRulesReady
     const headers = await getRequestHeaders(target.profile, mid)
+    // Safari：带 env / app-key / x-bili-aurora-zone 这类自定义头会让请求变成非简单请求，浏览器先发
+    // OPTIONS 预检，而 Safari 的 declarativeNetRequest 不作用于预检，预检会被 B 站 412。
+    // 实测这些头对登录与推荐接口都不是必需的（去掉后 auth_code 正常返回、feed/index 仍返回 code 0），
+    // 因此 Safari 下只保留表单 Content-Type；UA / Referer 仍由会话规则注入。
+    const requestHeaders = __SAFARI__ ? {} : headers
     // 每次请求在后台重新签名，保证 ts 有效
     const signedParams = new URLSearchParams(signAppParams(params ?? {}))
     const response = await fetch(target.form ? target.url : `${target.url}?${signedParams}`, {
@@ -193,8 +198,8 @@ async function requestAppClient({ endpoint, params, mid }: AppClientRequest) {
       credentials: 'omit',
       signal: controller.signal,
       headers: target.form
-        ? { ...headers, 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }
-        : headers,
+        ? { ...requestHeaders, 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }
+        : requestHeaders,
       body: target.form ? signedParams : undefined,
     })
 

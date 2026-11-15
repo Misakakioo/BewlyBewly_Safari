@@ -22,9 +22,16 @@ ship:
 	xcodebuild -quiet -project extension-safari-macos/BewlyCat/BewlyCat.xcodeproj -scheme BewlyCat -configuration Release \
 		-derivedDataPath extension-safari-macos/build -allowProvisioningUpdates \
 		CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=$(TEAM) CODE_SIGN_IDENTITY="Apple Development" \
-		MARKETING_VERSION=$$(node -p "require('./extension-safari/manifest.json').version") build
+		MARKETING_VERSION=$$(node -p "require('./extension-safari/manifest.json').version.split('.').slice(0,3).join('.')") build
 	# Unregister the build-folder copy, or Safari lists two BewlyCats with the same ID and enables neither.
 	$(LSREGISTER) -u $(APP)
+	# 装过旧包（换过 BUNDLE_ID）时，它的 LaunchServices 记录还指向 /Applications 这个路径，
+	# 不先注销的话 Safari 会留一条指向已删除包的幽灵扩展。
+	-$(LSREGISTER) -u /Applications/BewlyCat.app
+	# 上一轮 ship 结束时会 open，进程可能还活着；先退出再替换，否则删掉的是 bundle，
+	# 旧进程继续跑旧代码，Safari 会认为扩展被换掉而关掉启用状态。
+	-pkill -x BewlyCat
+	sleep 1
 	rm -rf /Applications/BewlyCat.app && mv $(APP) /Applications/BewlyCat.app
 	open /Applications/BewlyCat.app
 
